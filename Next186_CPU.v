@@ -42,11 +42,12 @@
 // This project was developed and tested on a XILINX Spartan3AN board.
 //
 //	Next186 processor features:
-//		All 80186 intstructions are implemented according with the 80186 specifications
+//		All 80186 intstructions are implemented according with the 80186 specifications (excepting ENTER instruction, 
+//		which uses always 0 as the second parameter - level).
 //		Designed with 2 buses: 16bit/20bit data/data_address and 48bit/20bit instruction/instruction_address.
 //		This allows most instructions to be executed in one clock cycle.
 //		In order to couple the CPU unit with a single bus, these sepparate data/instruction buses must be multiplexed by
-//			a dedicated bus interface unit (BIU).
+//		a dedicated bus interface unit (BIU).
 //		It is able to execute up to 40Mips on Spartan XC3S700AN speed grade -4, performances comparable with a 486 CPU.
 //		Small size, the CPU + BIU requires ~25%  or 1500 slices - on Spartan XC3S700AN
 // 

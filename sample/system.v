@@ -4,7 +4,7 @@
 // http://opencores.org/project,next186
 //
 // Filename: system.v
-// Description: Next80186 example system with 4K SRAM, working at 80MHZ
+// Description: Next80186 evaluation system with 4K SRAM, working at 80MHZ
 // Version 1.0
 // Creation date: 20Jan2012 - 10Mar2012
 //
@@ -13,7 +13,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////
 // 
-// Copyright (C) 2011 Nicolae Dumitrache
+// Copyright (C) 2012 Nicolae Dumitrache
 // 
 // This source file may be used and distributed without 
 // restriction provided that this copyright statement is not 

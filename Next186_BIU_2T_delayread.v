@@ -13,7 +13,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////
 // 
-// Copyright (C) 2011 Nicolae Dumitrache
+// Copyright (C) 2012 Nicolae Dumitrache
 // 
 // This source file may be used and distributed without 
 // restriction provided that this copyright statement is not 
@@ -39,37 +39,40 @@
 ///////////////////////////////////////////////////////////////////////////////////
 // Additional Comments: 
 //
-// Description: Next186 Bus Interface Unit, 32bit width SRAM, double CPU frequency (2T), delayed read (1T)
-// 
-//	The CPU is able to execute (up to) one instrusction/clock with sepparate data and instruction buses.
-//	This particular bus interface links the CPU with a 32bit width memory bus and it is able to address up to 1MB. 
-//	It have a 16byte instruction queue, and works at up to 80Mhz, allowing the CPU to execute an instruction at 2T. It is possible
-//		to implement a BIU with sepparate data/instruction buses, which will run at the same frequency as the CPU, but it requires more resources.
+//	- Links the CPU with a 32bit static synchronous RAM (or cache) 
+//	- Able to address up to 1MB 
+//	- 16byte instruction queue 
+//	- Works at 2 X CPU frequency (80Mhz on Spartan3AN), requiring minimum 2T for an instruction.
+//	- The 32bit data bus and the double CPU clock allows the instruction queue to be almost always full, avoiding the CPU starving. 
+//	  The data un-alignement penalties are required only when data words crosses the 4byte boundaries.
 //
-//	The 32bit data bus width and the double BIU clock allows the instruction queue to be almost always full, avoiding the CPU starving. 
-//	The data un-alignement penalties are required only when data words crosses the 4byte boundaries.
 //////////////////////////////////////////////////////////////////////////////////
-// How to compute each instruction duration, in clock cycles (please note that it is specific to this particular BIU implementation):
 //
-//	1 - From the Next186_features.doc see for each instruction how many T states are required (you will notice they are always
+// How to compute each instruction duration, in clock cycles (for this particular BIU implementation!):
+//
+// 1 - From the Next186_features.doc see for each instruction how many T states are required (you will notice they are always
 //		less or equal than 486 and much less than the original 80186
-// 2 - multiply this number by 2 - the BIU works at double ALU frequency because it needs to multiplex the data and instructions,
+// 2 - Multiply this number by 2 - the BIU works at double ALU frequency because it needs to multiplex the data and instructions,
 //		in order to keep the ALU permanently feed with instructions. The 16bit queue acts like a flexible instruction buffer.
-// 3 - add penalties, as follows:
+// 3 - Add penalties, as follows:
 //			+1T for each memory read - because of the synchronous SRAM which need this extra cycle to deliver the data
 //			+2T for each jump - required to flush and re-fill the instruction queue
 //			+1T for each 16bit(word) read/write which overlaps the 4byte boundary - specific to 32bit bus width
 //			+1T if the jump is made at an address with the latest 2bits 11 - specific to 32bit bus width
-//			+1T when the instruction queue empties - this case appears very rare, when a lot of 5-6 bytes memory write 
-//				instructions are executed one after the other
+//			+1T when the instruction queue empties - this case appears very rare, when a lot of 5-6 bytes memory write instructions are executed in direct sequence
+//
 //		Some examples:
-//			- the instruction "inc word ptr [1]" will require 5T (2x2T inc M + 1T read)
-//			- the instruction "inc word ptr [3]" will require 7T (2x2T inc M + 1T read + 1T unaligned read + 1T unaligned write)
-//			- the instruction "imul ax,bx,234" will require 4T (2x2T imul)
-//			- the instruction "loop <address = 1>" will require 4T (2x1T loop + 2T flush)
-//			- the instruction "loop <address = 3>" will require 5T (2x1T loop + 2T flush + 1T unaligned jump)
-//			- the instruction "call <address = 0>" will require 4T (2x1T call near + 2T flush 
-//			- the instruction "ret <address = 0>" will require 5T (2x2T ret + 1T read penalty)
+// 		- "lea ax,[bx+si+1234]" requires 2T
+// 		- "add ax, 2345" requires 2T
+// 		- "xchg ax, bx" requires 4T
+// 		- "inc word ptr [1]" requires 5T (2x2T inc M + 1T read)
+// 		- "inc word ptr [3]" requires 7T (2x2T inc M + 1T read + 1T unaligned read + 1T unaligned write)
+// 		- "imul ax,bx,234" requires 4T (2x2T imul)
+// 		- "loop address != 3(mod 4)" requires 4T (2x1T loop + 2T flush)
+// 		- "loop address == 3(mod 4)" requires 5T (2x1T loop + 2T flush + 1T unaligned jump)
+// 		- "call address 0" requires 4T (2x1T call near + 2T flush
+// 		- "ret address 0" requires 5T (2x2T ret + 1T read penalty)
+//
 //////////////////////////////////////////////////////////////////////////////////
 
 `timescale 1ns / 1ps
