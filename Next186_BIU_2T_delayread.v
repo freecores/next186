@@ -71,7 +71,7 @@
 // 		- "loop address != 3(mod 4)" requires 4T (2x1T loop + 2T flush)
 // 		- "loop address == 3(mod 4)" requires 5T (2x1T loop + 2T flush + 1T unaligned jump)
 // 		- "call address 0" requires 4T (2x1T call near + 2T flush
-// 		- "ret address 0" requires 5T (2x2T ret + 1T read penalty)
+// 		- "ret address 0" requires 7T (2x2T ret + 1T read penalty + 2T flush)
 //
 //////////////////////////////////////////////////////////////////////////////////
 
