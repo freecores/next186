@@ -51,6 +51,7 @@
 //		It is able to execute up to 40Mips on Spartan XC3S700AN speed grade -4, performances comparable with a 486 CPU.
 //		Small size, the CPU + BIU requires ~25%  or 1500 slices - on Spartan XC3S700AN
 // 
+//	16May2012 - fixed CMPS/SCAS bug when interrupted on the <equal> item
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -178,6 +179,8 @@ module Next186_CPU(
 	wire NMIACK = SNMI & ~FNMI;	// NMI acknowledged
 	wire INTRACK = FLAGS[9] & (~WE[4] | FIN[9]) & SINTR;			// INTR acknowledged (IF and not CLI in progress)
 	wire IACK = IRQ | (SAMPLEINT & (NMIACK | INTRACK)) | (~WE[2] & ~HALT & FLAGS[8]); // interrupt acknowledged
+	reg CMPS;	// early EQ test for CMPS
+	reg SCAS;   // early EQ test for SCAS
 
 	Next186_Regs REGS (
     .RASEL(RASEL),
@@ -290,12 +293,11 @@ module Next186_CPU(
 					FETCH[0] <= INSTR[7:0];
 					STAGE <= 0;
 					CPUStatus[5:0] <= status[5:0];
-					TZF <= status[3];
 					ICODE1 <= ICODE(INSTR[7:0]);
 				end else begin		// no interrupt, no fetch
 					STAGE <= STAGE + {DIVSTAGE, ALUSTAGE} + 1; 
 					if(&DOSEL) {FETCH[3], FETCH[2]} <= |DISEL ? DIN : RB;
-					TZF <= FIN[6];		// zero flag for REP
+					TZF <= FIN[6];		// zero flag for BOUND
 					TLF <= FIN[7] != FIN[11];	// less flag for BOUND
 				end
 			end
@@ -309,6 +311,8 @@ module Next186_CPU(
 			end
 			if(~|STAGE[1:0]) DIVQSGN <= QSGN;
 			RDIVEXC <= DIVOP & DIVEXC & ~IDIV; // bit 8/16 for unsigned DIV
+			CMPS <= (~FETCH[0][0] | (FETCH[3] == DIN[15:8])) & (FETCH[2] == DIN[7:0]);	// early EQ test for CMPS
+			SCAS <= (~FETCH[0][0] | (AX[15:8] == DIN[15:8])) & (AX[7:0] == DIN[7:0]);  // early EQ test for SCAS
 		end
 
 	always @(ISEL, FETCH[0], FETCH[1], FETCH[2], FETCH[3], FETCH[4], FETCH[5])
@@ -334,7 +338,7 @@ module Next186_CPU(
 		endcase
 	end
 
-	 always @(FETCH[0], FETCH[1], FETCH[2], FETCH[3], FETCH[4], FETCH[5], MOD, REG, RM, CPUStatus, USEBP, NOBP, RASEL, ISIZEI, TLF, EAC, COUT, DIVEND, DIVC, QSGN, 
+	 always @(FETCH[0], FETCH[1], FETCH[2], FETCH[3], FETCH[4], FETCH[5], MOD, REG, RM, CPUStatus, USEBP, NOBP, RASEL, ISIZEI, TLF, EAC, COUT, DIVEND, DIVC, QSGN, CMPS, SCAS,
 				 WBIT, ISIZES, ISELS, WRBIT, ISIZEW, STAGE, NULLSHIFT, ALUCONT, FLAGS, CXZ, RCXZ, NRORCXLE1, TZF, JMPC, LOOPC, ICODE1, DIVQSGN, DIVSGN, DIVRSGN, SOUT) begin
 		WORD = FETCH[0][0];
 		BASEL = FETCH[0][1] | &MOD;
@@ -1063,15 +1067,15 @@ module Next186_CPU(
 				AEXT = 1'b0;
 				NOBP = 1'b1;	// for RSSEL
 				case(STAGE[1:0])
-					2'b00: begin		// stage1, read ES:[DI] in FETCH[2:1], inc/dec DI
+					2'b00: begin		// stage1, read ES:[DI] in FETCH[3:2], inc/dec DI
 						RASEL = 3'b111; 	// SI
 						RSSEL = 2'b00;		// ES
 						ALUOP = {4'b0100, FLAGS[10]};	
 						EAC = 4'b0101;		// DI+DISP
 						DISEL = 2'b11;		// ALU 16bit
 						DOSEL = 2'b11;		// read data to FETCH
-						IFETCH = CPUStatus[4] && (~|CXZ || (CPUStatus[3] ^ TZF));	// REP & CX==0
-						MREQ = ~IFETCH;
+						IFETCH = RCXZ;//(~|CXZ || (CPUStatus[3] ^ TZF));	// REP & CX==0
+						MREQ = ~RCXZ;
 						WE[1:0] = IFETCH ? 2'b00 : 2'b11;		// RASEL_HI, RASEL_LO
 					end
 					2'b01: begin		// stage2, read DS:[SI] in TMP16, inc/dec SI
@@ -1082,14 +1086,14 @@ module Next186_CPU(
 						IFETCH = 1'b0;
 						WE[3:0] = 4'b1011;		// RASEL_HI, RASEL_LO
 					end
-					2'b10: begin		// stage3, compare TMP16 wit imm, set flags, dec CX
+					2'b10: begin		// stage3, compare TMP16 with imm, set flags, dec CX
 						BASEL = 1'b0;			// TMP16
 						BBSEL = 2'b10;			// imm
 						ISEL = 2'b01;
 						WE[4] = 1'b1;			// flags
 						ALUOP = 5'b00111;		// cmp
 						MREQ = 1'b0;
-						IFETCH = ~CPUStatus[4];
+						IFETCH = NRORCXLE1 | (CPUStatus[3] ^ CMPS);
 						DECCX = CPUStatus[4];
 						ALUSTAGE = 1'b1;
 						REPINT = 1'b1;
@@ -1101,15 +1105,14 @@ module Next186_CPU(
 			34: begin
 				DISP16 = 1'b0;
 				AEXT = 1'b0;
-				NOBP = 1'b1;	// for RSSEL (not really necesary, but with it the synthesis generates better speed)
 				if(!STAGE[0]) begin	// stage1, read ES:[DI] in TMP16, inc/dec DI
 					RASEL = 3'b111; 	// DI
 					RSSEL = 2'b00;		// ES
 					ALUOP = {4'b0100, FLAGS[10]};	
 					EAC = 4'b0101;		// DI+DISP
 					DISEL = 2'b11;		// ALU 16bit
-					IFETCH = CPUStatus[4] && (~|CXZ || (CPUStatus[3] ^ TZF));	// REP & CX==0
-					MREQ = ~IFETCH;
+					IFETCH = RCXZ;//(~|CXZ || (CPUStatus[3] ^ TZF));	// REP & CX==0
+					MREQ = ~RCXZ;
 					WE[3:0] = IFETCH ? 4'b0000 : 4'b1011;		// TMP16, RASEL_HI, RASEL_LO
 				end else begin	//stage2, compare AL/AX with TMP16, set flags, dec CX
 					RASEL = 3'b000;		// AL/AX
@@ -1117,7 +1120,7 @@ module Next186_CPU(
 					WE[4] = 1'b1;			// flags
 					ALUOP = 5'b00111;		// cmp
 					MREQ = 1'b0;
-					IFETCH = ~CPUStatus[4];
+					IFETCH = NRORCXLE1 | (CPUStatus[3] ^ SCAS);
 					DECCX = CPUStatus[4];
 					REPINT = 1'b1;
 				end
