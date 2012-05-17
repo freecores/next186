@@ -51,7 +51,7 @@
 //		It is able to execute up to 40Mips on Spartan XC3S700AN speed grade -4, performances comparable with a 486 CPU.
 //		Small size, the CPU + BIU requires ~25%  or 1500 slices - on Spartan XC3S700AN
 // 
-//	16May2012 - fixed CMPS/SCAS bug when interrupted on the <equal> item
+//	16May2012 - fixed REP CMPS/SCAS bug when interrupted on the <equal> item
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
