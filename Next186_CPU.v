@@ -52,6 +52,7 @@
 //		Small size, the CPU + BIU requires ~25%  or 1500 slices - on Spartan XC3S700AN
 // 
 //	16May2012 - fixed REP CMPS/SCAS bug when interrupted on the <equal> item
+// 23Dec2012 - fixed DIV bug (exception on sign bit)
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -916,7 +917,8 @@ module Next186_CPU(
 								DIVSTAGE = ~DIVEND;
 								ALUSTAGE = ~DIVEND | ~DIVQSGN;
 								DIVOP = 1'b1;
-								IRQ = ~|STAGE[6:3] & DIVC & ~(STAGE[2] & DIVSGN); // early overflow for positive quotient
+//								IRQ = ~|STAGE[6:3] & DIVC & ~(STAGE[2] & DIVSGN); - DIV bug, fixed 23Dec2012
+								IRQ = ~|STAGE[6:3] & DIVC & (~STAGE[2] | (~DIVSGN & IDIV)); // early overflow for positive quotient
 								IFETCH = (DIVEND && ~DIVQSGN && ~DIVRSGN) || IRQ;
 							end
 							3'b100: begin		// stage5, post inc R
