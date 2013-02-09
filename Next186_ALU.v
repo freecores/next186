@@ -71,6 +71,7 @@
 //
 //  FLAGS:		X X X X OF DF IF TF  |  SF ZF X AF X PF X CF
 //
+// 09Feb2013 - fixed DAA,DAS bug
 //////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -110,9 +111,8 @@ module Next186_ALU(
 	wire zero = ~|ALUOUT[15:0];
 	wire overflow8 = (SUMOP1[7] & SUMOP2[7] & !SUMOUT[7]) | (!SUMOP1[7] & !SUMOP2[7] & SUMOUT[7]);
 	wire overflow = (SUMOP1[15] & SUMOP2[15] & !SUMOUT[15]) | (!SUMOP1[15] & !SUMOP2[15] & SUMOUT[15]);
-	wire LO9 = RA[3:0] > 9;
-	wire LONIBBLE =  LO9 | FIN[4];
-	wire HINIBBLE = (RA[7:4] > 8 && LO9) | FIN[0];
+	wire LONIBBLE = (RA[3:0] > 4'h9)  || FIN[4];
+	wire HINIBBLE = (RA[7:0] > 8'h99) || FIN[0];
 
 // ADDER		
 	assign {AF, SUMOUT[3:0]} = SUMOP1[3:0] + SUMOP2[3:0] + SCIN;
@@ -207,8 +207,8 @@ module Next186_ALU(
 			end
 			5'b01100, 5'b01101: begin 	// DAA, DAS
 				ALUOUT = SUMOUT;
-				FOUT[0] = HINIBBLE ? 1'b1 : FIN[0];
-				FOUT[4] = LONIBBLE ? 1'b1 : FIN[4];
+				FOUT[0] = HINIBBLE;
+				FOUT[4] = LONIBBLE;
 			end
 			5'b01110, 5'b01111: begin	// AAA, AAS
 				ALUOUT = {SUMOUT[15:8], 4'b0000, SUMOUT[3:0]};
