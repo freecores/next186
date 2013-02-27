@@ -53,6 +53,7 @@
 // 
 //	16May2012 - fixed REP CMPS/SCAS bug when interrupted on the <equal> item
 // 23Dec2012 - fixed DIV bug (exception on sign bit)
+// 27Feb2013 - fixed MUL/IMUL 8bit flags bug
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -861,6 +862,7 @@ module Next186_CPU(
 					3'b100, 3'b101: begin	// MUL, IMUL
 						ISIZE = ISIZES;
 						ALUOP = {4'b1000, REG[0]};		// BASEL = FETCH[0][1] = 1
+						WE[4] = 1'b1;			// fix MUL/IMUL 8bit flags bug
 						case(STAGE[1:0])
 							2'b00: begin		// stage1, RA -> TMP16, RB (mem) -> FETCH
 								MREQ = ~&MOD;
@@ -869,14 +871,14 @@ module Next186_CPU(
 								DOSEL = 2'b11;	 
 								IFETCH = 1'b0;
 							end
-							2'b01: begin				// stage2, write AX
-								WE[1:0] = 2'b11;	
+							2'b01: begin			// stage2, write AX
+								WE[1:0] = 2'b11;	// flags, RASEL_HI, RASEL_LO 
 								RASEL = 3'b000;	// AX
 								MREQ = 1'b0;
 								IFETCH = ~FETCH[0][0];
 							end
 							2'b10: begin			// stage 2, write DX
-								WE = 5'b10011;		
+								WE[1:0] = 2'b11;	// flags, RASEL_HI, RASEL_LO	
 								RASEL = 3'b010;	// DX
 								MREQ = 1'b0;
 							end
