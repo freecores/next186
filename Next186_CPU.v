@@ -54,6 +54,8 @@
 //	16May2012 - fixed REP CMPS/SCAS bug when interrupted on the <equal> item
 // 23Dec2012 - fixed DIV bug (exception on sign bit)
 // 27Feb2013 - fixed MUL/IMUL 8bit flags bug
+// 03Apr2013 - fix RET n alignment bug
+// 04Apr2013 - fix TRAP interrupt acknowledge
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -180,7 +182,7 @@ module Next186_CPU(
 	wire SAMPLEINT = ~(WE[2] & RASEL[1:0] == 2'b10) & ~status[2] & ~status[4] & ~status[5]; // not load SS, no prefix
 	wire NMIACK = SNMI & ~FNMI;	// NMI acknowledged
 	wire INTRACK = FLAGS[9] & (~WE[4] | FIN[9]) & SINTR;			// INTR acknowledged (IF and not CLI in progress)
-	wire IACK = IRQ | (SAMPLEINT & (NMIACK | INTRACK)) | (~WE[2] & ~HALT & FLAGS[8]); // interrupt acknowledged
+	wire IACK = IRQ | (SAMPLEINT & (NMIACK | INTRACK | (~HALT & FLAGS[8]))); // interrupt acknowledged (fixed 04Apr2013)
 	reg CMPS;	// early EQ test for CMPS
 	reg SCAS;   // early EQ test for SCAS
 
@@ -341,7 +343,7 @@ module Next186_CPU(
 	end
 
 	 always @(FETCH[0], FETCH[1], FETCH[2], FETCH[3], FETCH[4], FETCH[5], MOD, REG, RM, CPUStatus, USEBP, NOBP, RASEL, ISIZEI, TLF, EAC, COUT, DIVEND, DIVC, QSGN, CMPS, SCAS,
-				 WBIT, ISIZES, ISELS, WRBIT, ISIZEW, STAGE, NULLSHIFT, ALUCONT, FLAGS, CXZ, RCXZ, NRORCXLE1, TZF, JMPC, LOOPC, ICODE1, DIVQSGN, DIVSGN, DIVRSGN, SOUT) begin
+				 WBIT, ISIZES, ISELS, WRBIT, ISIZEW, STAGE, NULLSHIFT, ALUCONT, FLAGS, CXZ, RCXZ, NRORCXLE1, TZF, JMPC, LOOPC, ICODE1, DIVQSGN, DIVSGN, DIVRSGN, SOUT, IDIV) begin
 		WORD = FETCH[0][0];
 		BASEL = FETCH[0][1] | &MOD;
 		RASEL = FETCH[0][1] ? REG : RM; // destination
@@ -1287,6 +1289,7 @@ module Next186_CPU(
 			end
 // --------------------------------  ret near --------------------------------
 			41: begin
+				WORD = 1'b1;		// fix RET n alignment bug - 03Apr2013
 				ISIZE = FETCH[0][0] ? 1 : 3;
 				IFETCH = STAGE[0];
 				ALUOP = 31;			// PASS B
@@ -1306,6 +1309,7 @@ module Next186_CPU(
 			end
 // --------------------------------  ret far --------------------------------
 			42: begin
+				WORD = 1'b1;		// fix RET n alignment bug - 03Apr2013
 				ALUOP = 31;			// PASS B
 				RSSEL = 2'b10;			// SS
 				IFETCH = STAGE[1];
