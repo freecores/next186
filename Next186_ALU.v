@@ -91,7 +91,6 @@ module Next186_ALU(
 	 output reg ALUCONT,
 	 output NULLSHIFT,
 	 output COUT,
-	 output SOUT,
 	 input [2:0]STAGE,
 	 input CLK
     );
@@ -119,7 +118,6 @@ module Next186_ALU(
 	assign {SC8OUT, SUMOUT[7:4]} = SUMOP1[7:4] + SUMOP2[7:4] + AF;
 	assign {SC16OUT, SUMOUT[15:8]} = SUMOP1[15:8] + SUMOP2[15:8] + SC8OUT;
 	assign COUT = (WORD ? SC16OUT : SC8OUT) ^ CPLOP2;
-	assign SOUT = WORD ? SUMOUT[15] : SUMOUT[7];
 
 // SHIFTER
 	reg [4:0]SHNOPT;	// optimized shift

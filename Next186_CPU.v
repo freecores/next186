@@ -56,6 +56,7 @@
 // 27Feb2013 - fixed MUL/IMUL 8bit flags bug
 // 03Apr2013 - fix RET n alignment bug
 // 04Apr2013 - fix TRAP interrupt acknowledge
+// 12Apr2013 - fix IDIV when Q=0
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -107,7 +108,6 @@ module Next186_CPU(
 	wire [1:0]CXZ;
 	wire COUT; // adder carry out
 	wire DIVEXC; // exit carry for unsigned DIV 
-	wire SOUT; // adder sign out
 	
 // Registers
 	reg [7:0]FETCH[5:0];
@@ -245,7 +245,6 @@ module Next186_CPU(
 	 .STAGE(STAGE[2:0]),
 	 .INC2(&DISEL),	// when DISEL == 2'b11, inc/dec value is 2 if WORD and 1 if ~WORD
 	 .COUT(COUT),
-	 .SOUT(SOUT),
 	 .CLK(CLK)
 	 );
 		 
@@ -343,7 +342,7 @@ module Next186_CPU(
 	end
 
 	 always @(FETCH[0], FETCH[1], FETCH[2], FETCH[3], FETCH[4], FETCH[5], MOD, REG, RM, CPUStatus, USEBP, NOBP, RASEL, ISIZEI, TLF, EAC, COUT, DIVEND, DIVC, QSGN, CMPS, SCAS,
-				 WBIT, ISIZES, ISELS, WRBIT, ISIZEW, STAGE, NULLSHIFT, ALUCONT, FLAGS, CXZ, RCXZ, NRORCXLE1, TZF, JMPC, LOOPC, ICODE1, DIVQSGN, DIVSGN, DIVRSGN, SOUT, IDIV) begin
+				 WBIT, ISIZES, ISELS, WRBIT, ISIZEW, STAGE, NULLSHIFT, ALUCONT, FLAGS, CXZ, RCXZ, NRORCXLE1, TZF, JMPC, LOOPC, ICODE1, DIVQSGN, DIVSGN, DIVRSGN, FIN, IDIV, AX) begin
 		WORD = FETCH[0][0];
 		BASEL = FETCH[0][1] | &MOD;
 		RASEL = FETCH[0][1] ? REG : RM; // destination
@@ -935,7 +934,8 @@ module Next186_CPU(
 								RASEL = 3'b000; // AX/AL
 								WE[1:0] = {WORD, 1'b1};		// RASEL_HI, RASEL_LO
 								ALUOP = 5'b01000;	// inc
-								IRQ = SOUT ^ DIVSGN;	// overflow for negative quotient
+//								IRQ = SOUT ^ DIVSGN;	// overflow for negative quotient - fixed 12Apr2013 - IDIV bug when Q=0
+								IRQ = ~(FIN[7] | (FETCH[0][0] ? AX[15] : AX[7])); // overflow for negative quotient
 							end
 						endcase
 					end
