@@ -57,6 +57,7 @@
 // 03Apr2013 - fix RET n alignment bug
 // 04Apr2013 - fix TRAP interrupt acknowledge
 // 12Apr2013 - fix IDIV when Q=0
+// 16May2013 - fix PUSHA SP pushed stack value, which should be the one before PUSHA
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -603,8 +604,10 @@ module Next186_CPU(
 				DISEL = 2'b10;			// ADDR
 				WR = 1'b1;
 				ISIZE = 1;
-				IFETCH = &STAGE[2:0];
-				WE[1:0] = 2'b11;		// RASEL_HI, RASEL_LO
+				IFETCH = STAGE[2:0] == 3'b111;
+				WE[1:0] = 2'b11;					// RASEL_HI, RASEL_LO
+				BASEL = STAGE[1:0] == 2'b00;	// 16May2013 - fix PUSHA SP pushed stack value, which should be the one before PUSHA
+				BBSEL[0] = STAGE[2:0] != 3'b100;	// SP stage
 			end
 // --------------------------------  pop R/M --------------------------------
 			11: 			
