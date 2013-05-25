@@ -58,6 +58,7 @@
 // 04Apr2013 - fix TRAP interrupt acknowledge
 // 12Apr2013 - fix IDIV when Q=0
 // 16May2013 - fix PUSHA SP pushed stack value, which should be the one before PUSHA
+// 25May2013 - generate invalid opcode exception for MOV FS and GS 
 ///////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -387,10 +388,11 @@ module Next186_CPU(
 				ALUOP = 31;	// PASS B
 				DISEL = {1'b0, &MOD};
 				ASEL = 1'b1;
-				MREQ = ~&MOD;
+				IRQ = FETCH[0][2] & FETCH[1][5];	// 25May2013 - generate invalid opcode exception for MOV FS and GS						
+				MREQ = ~&MOD & ~IRQ;
 				WR = MREQ & !FETCH[0][1];
-				WE = WR ? 5'b00000 : &FETCH[0][2:1] ? {2'b00, FETCH[1][4:3] != 2'b01, 2'b00} : {3'b000, WBIT};		// RSSEL, RASEL_HI/RASEL_LO
-				ISIZE = ISIZES;
+				WE = WR | IRQ ? 5'b00000 : &FETCH[0][2:1] ? {2'b00, FETCH[1][4:3] != 2'b01, 2'b00} : {3'b000, WBIT};		// RSSEL, RASEL_HI/RASEL_LO
+				ISIZE = IRQ ? 0 : ISIZES;
 			end
 // --------------------------------  mov IMM to R/M  --------------------------------
 			1: begin	
