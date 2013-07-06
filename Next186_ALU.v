@@ -72,6 +72,7 @@
 //  FLAGS:		X X X X OF DF IF TF  |  SF ZF X AF X PF X CF
 //
 // 09Feb2013 - fixed DAA,DAS bug
+// 07Jul2013 - fixed OV/CY flags for IMUL
 //////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns / 1ps
 
@@ -215,7 +216,7 @@ module Next186_ALU(
 			end
 			5'b10000, 5'b10001 : begin	// MUL, IMUL
 				ALUOUT = STAGE[1] ? MUL[31:16] : MUL[15:0];
-				FOUT[0] = WORD ? !zero : |MUL[15:8];
+				FOUT[0] = WORD ? !zero | (ALUOP[0] & MUL[15]): |MUL[15:8] | (ALUOP[0] & MUL[7]); //07Jul2013 - fixed OV/CY flags for IMUL
 				FOUT[11] = FOUT[0];
 			end
 			5'b11001: begin		// flag op
