@@ -216,7 +216,9 @@ module Next186_ALU(
 			end
 			5'b10000, 5'b10001 : begin	// MUL, IMUL
 				ALUOUT = STAGE[1] ? MUL[31:16] : MUL[15:0];
-				FOUT[0] = WORD ? !zero | (ALUOP[0] & MUL[15]): |MUL[15:8] | (ALUOP[0] & MUL[7]); //07Jul2013 - fixed OV/CY flags for IMUL
+//07Jul2013 - fixed OV/CY flags for IMUL
+				if(ALUOP[0]) FOUT[0] = WORD ? MUL[31:16] != {16{MUL[15]}} : MUL[15:8] != {8{MUL[7]}}; // IMUL
+				else FOUT[0] = WORD ? !zero : |MUL[15:8];	// MUL
 				FOUT[11] = FOUT[0];
 			end
 			5'b11001: begin		// flag op
