@@ -63,7 +63,7 @@
 `timescale 1ns / 1ps
 
 module Next186_CPU(
-    output [19:0] ADDR,
+    output [20:0] ADDR,
     input [15:0] DIN,
     output [15:0] DOUT,
 	 input CLK,
@@ -77,7 +77,7 @@ module Next186_CPU(
 	 output reg WR,
 	 output reg WORD,
 	 output LOCK,
-	 output [19:0]IADDR,
+	 output [20:0]IADDR,
 	 input [47:0]INSTR,
 	 output reg IFETCH,
 	 output FLUSH,
@@ -265,8 +265,8 @@ module Next186_CPU(
     );
 
 	 assign DOUT = DOSEL[1] ? DOSEL[0] ? AX : TMP16 : DOSEL[0] ? IPADD : ALUOUT;
-	 assign ADDR = {{NULLSEG ? 16'h0000 : RS} + {4'b0000, ADDR16_SP[15:4]}, ADDR16_SP[3:0]};
-	 assign IADDR = {CS + {4'b0000, IPIN[15:4]}, IPIN[3:0]};
+	 assign ADDR = {{NULLSEG ? 16'h0000 : RS} + {5'b00000, ADDR16_SP[15:4]}, ADDR16_SP[3:0]};
+	 assign IADDR = {CS + {5'b00000, IPIN[15:4]}, IPIN[3:0]};
 	 assign AIMM1 = ASEL ? {FETCH[3], FETCH[2]} : {FETCH[2], FETCH[1]};
 
 	 always @(posedge CLK)

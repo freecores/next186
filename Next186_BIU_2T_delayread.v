@@ -87,17 +87,21 @@ module BIU186_32bSync_2T_DelayRead(
 	input MREQ,
 	input WR,
 	input WORD,
-	input [19:0]ADDR,
-	input [19:0]IADDR,
+	input [20:0]ADDR,
+	input [20:0]IADDR,
 	output reg CE186,	// CPU clock enable
 	input [31:0]RAM_DIN,
 	output [31:0]RAM_DOUT,
-	output [17:0]RAM_ADDR,
+	output [18:0]RAM_ADDR,
 	output RAM_MREQ,
 	output wire[3:0]RAM_WMASK,
 	output reg [15:0]DOUT,
 	input [15:0]DIN,
-	input CE		// BIU clock enable
+	input CE,		// BIU clock enable
+	output reg data_bound,
+	input [1:0]WSEL,	// normally {~ADDR[0], ADDR[0]}
+	output reg RAM_RD,
+	output reg RAM_WR
 );
 
 	reg [31:0]queue[3:0];
@@ -106,22 +110,19 @@ module BIU186_32bSync_2T_DelayRead(
 	reg [3:0]qpos = 0;
 	reg [4:0]qsize = 0;
 	reg [1:0]rpos = 0;
-	reg [17:0]piaddr = 0;
+	reg [18:0]piaddr = 0;
 	reg [7:0]exdata = 0;
 	reg rdi = 0;
-	reg data_bound;
 	
 	reg [1:0]NEXTSTATE;
-	reg RAM_RD;
-	reg RAM_WR;
 	reg sflush;
 	wire [4:0]newqsize = sflush ? -IADDR[1:0] : CE186 && IFETCH && ~FLUSH ? qsize - ISIZE : qsize;
 	wire qnofull = qsize < 13;
 	reg iread;// = (qnofull && !RAM_RD && !RAM_WR) || sflush;
 	wire [3:0]nqpos = (FLUSH && IFETCH) ? {2'b00, IADDR[1:0]} : (qpos + ISIZE);
-	wire [17:0]MIADDR = sflush ? IADDR[19:2] : piaddr;
+	wire [18:0]MIADDR = sflush ? IADDR[20:2] : piaddr;
 	wire split = (&ADDR[1:0]) && WORD; // data between dwords
-	wire [15:0]DSWAP = ADDR[0] ? {DIN[7:0], DIN[15:8]} : DIN;
+	wire [15:0]DSWAP = {WSEL[1] ? DIN[15:8] : DIN[7:0], WSEL[0] ? DIN[15:8] : DIN[7:0]};	//ADDR[0] ? {DIN[7:0], DIN[15:8]} : DIN;
 	wire [1:0]a1 = nqpos[3:2] + 1;
 	wire [1:0]a2 = nqpos[3:2] + 2;
 	wire [31:0]q1 = rdi && (a1 == rpos) ? RAM_DIN : queue[a1];
@@ -131,7 +132,7 @@ module BIU186_32bSync_2T_DelayRead(
 //	assign DOUT = split ? {RAM_DIN[7:0], exdata} : (RAM_DIN >> {ADDR[1:0], 3'b000}); 
 	assign RAM_DOUT = {DSWAP, DSWAP};
 	assign RAM_MREQ = iread || RAM_RD || RAM_WR;
-	assign RAM_ADDR = iread ? MIADDR : ADDR[19:2] + data_bound; 
+	assign RAM_ADDR = iread ? MIADDR : ADDR[20:2] + data_bound; 
 	assign RAM_WMASK = data_bound ? {3'b000, RAM_WR} : {2'b00, WORD & RAM_WR, RAM_WR} << ADDR[1:0];
 
 	always @(*) begin
